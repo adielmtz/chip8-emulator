@@ -19,6 +19,7 @@
 
 /* VM handlers */
 #define OPCODE_HANDLER(op) static inline void VM_OpCode_Handler_##op(Chip8 *chip, const u16 opcode)
+#define OPCODE_EXECUTE(op) VM_OpCode_Handler_##op(chip, opcode)
 
 /* Shorthands */
 typedef uint8_t u8;
@@ -390,7 +391,7 @@ OPCODE_HANDLER(ldst)
 /**
  * Fx1E: Add Vx to I.
  */
-OPCODE_HANDLER(sadi)
+OPCODE_HANDLER(stoi)
 {
     u8 x = (opcode & 0x0F00) >> 8;
     chip->I += chip->V[x];
@@ -461,7 +462,63 @@ void chip8_step(Chip8 *chip)
     u8 lo = chip->mem[chip->pc + 1];
     u16 opcode = (hi << 8) | lo;
 
-    /* Switch machine goes here */
+    switch (hi & 0xF0) {
+        case 0x00: {
+            switch (lo) {
+                case 0xE0: OPCODE_EXECUTE(cls); break;
+                case 0xEE: OPCODE_EXECUTE(ret); break;
+                default:   OPCODE_EXECUTE(dw);  break;
+            }
+            break;
+        }
+        case 0x10: OPCODE_EXECUTE(jp);   break;
+        case 0x20: OPCODE_EXECUTE(call); break;
+        case 0x30: OPCODE_EXECUTE(sei);  break;
+        case 0x40: OPCODE_EXECUTE(snei); break;
+        case 0x50: OPCODE_EXECUTE(se);   break;
+        case 0x60: OPCODE_EXECUTE(ldi);  break;
+        case 0x70: OPCODE_EXECUTE(addi); break;
+        case 0x80: {
+            switch (lo & 0x0F) {
+                case 0x00: OPCODE_EXECUTE(mov);  break;
+                case 0x01: OPCODE_EXECUTE(or);   break;
+                case 0x02: OPCODE_EXECUTE(and);  break;
+                case 0x03: OPCODE_EXECUTE(xor);  break;
+                case 0x04: OPCODE_EXECUTE(add);  break;
+                case 0x05: OPCODE_EXECUTE(sub);  break;
+                case 0x06: OPCODE_EXECUTE(shr);  break;
+                case 0x07: OPCODE_EXECUTE(subn); break;
+                case 0x0E: OPCODE_EXECUTE(shl);  break;
+            }
+            break;
+        }
+        case 0x90: OPCODE_EXECUTE(sne); break;
+        case 0xA0: OPCODE_EXECUTE(mvi); break;
+        case 0xB0: OPCODE_EXECUTE(jpi); break;
+        case 0xC0: OPCODE_EXECUTE(rnd); break;
+        case 0xD0: OPCODE_EXECUTE(drw); break;
+        case 0xE0: {
+            switch (lo) {
+                case 0x9E: OPCODE_EXECUTE(skp);  break;
+                case 0xA1: OPCODE_EXECUTE(sknp); break;
+            }
+            break;
+        }
+        case 0xF0: {
+            switch (lo) {
+                case 0x07: OPCODE_EXECUTE(stdt); break;
+                case 0x0A: OPCODE_EXECUTE(stkp); break;
+                case 0x15: OPCODE_EXECUTE(lddt); break;
+                case 0x18: OPCODE_EXECUTE(ldst); break;
+                case 0x1E: OPCODE_EXECUTE(stoi); break;
+                case 0x29: OPCODE_EXECUTE(sprt); break;
+                case 0x33: OPCODE_EXECUTE(bcd);  break;
+                case 0x55: OPCODE_EXECUTE(push); break;
+                case 0x65: OPCODE_EXECUTE(pop);  break;
+            }
+            break;
+        }
+    }
 
     NEXT_OPCODE();
 }
