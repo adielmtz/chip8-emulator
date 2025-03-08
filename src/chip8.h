@@ -33,3 +33,5 @@ typedef struct Chip8
 } Chip8;
 
 void chip8_init(Chip8 *chip);
+void chip8_load(Chip8 *chip, const char *rom);
+void chip8_step(Chip8 *chip);

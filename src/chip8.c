@@ -456,6 +456,24 @@ void chip8_init(Chip8 *chip)
     chip->state = ST_RUNNING;
 }
 
+void chip8_load(Chip8 *chip, const char *rom)
+{
+    u8 buffer[0x0CA0];
+    memset(buffer, 0, sizeof(buffer));
+
+    FILE *handle = fopen(rom, "rb");
+    if (!handle) {
+        /* TODO: Implement proper error handling */
+        return;
+    }
+
+    size_t bytes = fread(buffer, sizeof(u8), sizeof(buffer), handle);
+    fclose(handle);
+
+    /* Copy rom at the starting address */
+    memcpy(&chip->mem[MEM_PC_START], buffer, bytes);
+}
+
 void chip8_step(Chip8 *chip)
 {
     u8 hi = chip->mem[chip->pc];
