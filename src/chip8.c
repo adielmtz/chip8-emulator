@@ -152,6 +152,106 @@ OPCODE_HANDLER(addi)
     chip->V[x] += nn;
 }
 
+/**
+ * 8xy0: Set Vx to the value of Vy.
+ */
+OPCODE_HANDLER(mov)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    chip->V[x] = chip->V[y];
+}
+
+/**
+ * 8xy1: Set Vx to the result of bitwise Vx OR Vy. Side-effect: resets Vf.
+ */
+OPCODE_HANDLER(or)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    chip->V[x] |= chip->V[y];
+    chip->V[0xF] = 0;
+}
+
+/**
+ * 8xy2: Set Vx to the result of bitwise Vx AND Vy. Side-effect: resets Vf.
+ */
+OPCODE_HANDLER(and)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    chip->V[x] &= chip->V[y];
+    chip->V[0xF] = 0;
+}
+
+/**
+ * 8xy3: Set Vx to the result of bitwise Vx XOR Vy. Side-effect: resets Vf.
+ */
+OPCODE_HANDLER(xor)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    chip->V[x] ^= chip->V[y];
+    chip->V[0xF] = 0;
+}
+
+/**
+ * 8xy4: Add Vy to Vx. Vf is set to 1 if an overflow happened, to 0 if not.
+ */
+OPCODE_HANDLER(add)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    u16 z = chip->V[x] + chip->V[y];
+    chip->V[0xF] = z > 0xFF;
+    chip->V[x] = z & 0xFF;
+}
+
+/**
+ * 8xy5: Subtract Vy from Vx. Vf is set to 0 if an underflow happened, to 1 if not.
+ */
+OPCODE_HANDLER(sub)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    u16 z = chip->V[x] - chip->V[y];
+    chip->V[0xF] = z <= chip->V[x];
+    chip->V[x] = z & 0xFF;
+}
+
+/**
+ * 8xy6: Shift Vx one bit to the right. Set Vf to the bit shifted out.
+ */
+OPCODE_HANDLER(shr)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->V[0xF] = chip->V[x] & 0x01;
+    chip->V[x] >>= 1;
+}
+
+/**
+ * 8xy7: Subtract Vx from Vy. Vf is set to 0 if an underflow happened, to 1 if not.
+ */
+OPCODE_HANDLER(subn)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    u16 z = chip->V[y] - chip->V[x];
+    chip->V[0xF] = z <= chip->V[y];
+    chip->V[x] = z & 0xFF;
+}
+
+/**
+ * 8xyE: Shift Vx one bit to the left. Set Vf to the bit shifted out.
+ */
+OPCODE_HANDLER(shl)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->V[0xF] = chip->V[x] & 0x01;
+    chip->V[x] <<= 1;
+}
+
+
 void chip8_init(Chip8 *chip)
 {
     memset(chip, 0, sizeof(Chip8));
