@@ -7,4 +7,5 @@ add_compile_options(-Wall)
 
 add_executable(CHIP8
     src/main.c
+    src/chip8.c
 )
