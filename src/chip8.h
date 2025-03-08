@@ -31,3 +31,5 @@ typedef struct Chip8
     uint8_t delay;
     uint8_t sound;
 } Chip8;
+
+void chip8_init(Chip8 *chip);
