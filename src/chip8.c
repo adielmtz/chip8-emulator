@@ -1,7 +1,7 @@
 #include "chip8.h"
 
 #include <stdio.h>
-#include <stdlib.h>
+#include <stdlib.h> /* For rand */
 #include <stdint.h>
 #include <string.h> /* For memset & memcpy */
 
@@ -13,6 +13,7 @@
 #define STACK_PUSH()       do { chip->sp -= 2; } while (0)
 #define STACK_POP()        do { chip->sp += 2; } while (0)
 #define JUMP_ADDR(addr)    do { chip->pc = (((addr) & 0x0FFF) - 2); } while (0)
+#define RETRY_OPCODE()     do { chip->pc -= 2; } while (0)
 #define NEXT_OPCODE()      do { chip->pc += 2; } while (0)
 #define SKIP_NEXT_OPCODE() NEXT_OPCODE()
 
@@ -249,6 +250,198 @@ OPCODE_HANDLER(shl)
     u8 x = (opcode & 0x0F00) >> 8;
     chip->V[0xF] = chip->V[x] & 0x01;
     chip->V[x] <<= 1;
+}
+
+/**
+ * 9xy0: Skip next opcode if Vx != Vy.
+ */
+OPCODE_HANDLER(sne)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+
+    if (chip->V[x] != chip->V[y]) {
+        SKIP_NEXT_OPCODE();
+    }
+}
+
+/**
+ * Annn: Set I to the address NNN.
+ */
+OPCODE_HANDLER(mvi)
+{
+    chip->I = opcode & 0x0FFF;
+}
+
+/**
+ * Bnnn: Jump to the address NNN + V0.
+ */
+OPCODE_HANDLER(jpi)
+{
+    u16 nnn = opcode & 0x0FFF;
+    JUMP_ADDR(nnn + chip->V[0]);
+}
+
+/**
+ * Cxnn: Set Vx to the result of a bitwise AND operation on a random number and NN.
+ */
+OPCODE_HANDLER(rnd)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 nn = opcode & 0x00FF;
+    chip->V[x] = rand() & nn;
+}
+
+/**
+ * Dxyn: Draw a sprite at coordinate (Vx, Vy) that has a width of 8 pixels and a height of N pixels.
+ * Each row of 8 pixels is read as bit-coded starting from memory location I.
+ */
+OPCODE_HANDLER(drw)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 y = (opcode & 0x00F0) >> 4;
+    u8 n = opcode & 0x000F;
+
+    /* Get top-left corner coordinates */
+    u8 cx = chip->V[x];
+    u8 cy = chip->V[y];
+
+    /* Reset Vf */
+    chip->V[0xF] = 0;
+
+    /* TODO: Implement logic here... */
+
+    /* Instruct graphics layer to redraw the screen */
+    chip->state |= ST_REDRAW;
+}
+
+/**
+ * Ex9E: Skip next opcode if key in the lower 4 bits of Vx is pressed.
+ */
+OPCODE_HANDLER(skp)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 n = chip->V[x] & 0x0F;
+
+    if (chip->kb[n]) {
+        SKIP_NEXT_OPCODE();
+    }
+}
+
+/**
+ * ExA1: Skip next opcode if key in the lower 4 bits of Vx is NOT pressed.
+ */
+OPCODE_HANDLER(sknp)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    u8 n = chip->V[x] & 0x0F;
+
+    if (!chip->kb[n]) {
+        SKIP_NEXT_OPCODE();
+    }
+}
+
+/**
+ * Fx07: Set Vx to the value of the delay timer.
+ */
+OPCODE_HANDLER(stdt)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->V[x] = chip->delay;
+}
+
+/**
+ * Fx0A: Wait for a key to be pressed and released, and set Vx to it.
+ * Blocking opcode. All instructions are halted until next key event.
+ * Delay and sound timers must continue processing.
+ */
+OPCODE_HANDLER(stkp)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+
+    for (u8 i = 0; i < 16; i++) {
+        if (chip->kb[i]) {
+            chip->V[x] = i;
+            return;
+        }
+    }
+
+    RETRY_OPCODE();
+}
+
+/**
+ * Fx15: Set delay timer to Vx.
+ */
+OPCODE_HANDLER(lddt)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->delay = chip->V[x];
+}
+
+/**
+ * Fx18: Set sound timer to Vx.
+ */
+OPCODE_HANDLER(ldst)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->sound = chip->V[x];
+}
+
+/**
+ * Fx1E: Add Vx to I.
+ */
+OPCODE_HANDLER(sadi)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->I += chip->V[x];
+}
+
+/**
+ * Fx29: Set I to the 5-line high hex sprite for the lowest nibble in Vx.
+ */
+OPCODE_HANDLER(sprt)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->I = chip->V[x] * 5;
+}
+
+/**
+ * Fx33: Write the value of Vx as BCD value at the addresses I, I+1, and I+2.
+ */
+OPCODE_HANDLER(bcd)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+    chip->mem[chip->I + 0] = chip->V[x] / 100;
+    chip->mem[chip->I + 1] = (chip->V[x] / 10) % 10;
+    chip->mem[chip->I + 2] = chip->V[x] % 10;
+}
+
+/**
+ * Fx55: Write the registers from V0 to Vx at memory address pointed to by I. I is incremented by X+1.
+ */
+OPCODE_HANDLER(push)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+
+    for (u8 i = 0; i <= x; i++) {
+        chip->mem[chip->I + i] = chip->V[i];
+    }
+
+    chip->I += x + 1;
+}
+
+/**
+ * Fx65: Read the bytes from memory address pointed to by I into the registers V0 to Vx. I is incremented by X+1.
+ */
+OPCODE_HANDLER(pop)
+{
+    u8 x = (opcode & 0x0F00) >> 8;
+
+    for (u8 i = 0; i <= x; i++) {
+        chip->V[i] = chip->mem[chip->I + i];
+    }
+
+    chip->I += x + 1;
 }
 
 
