@@ -310,7 +310,21 @@ OPCODE_HANDLER(drw)
     /* Reset Vf */
     chip->V[0xF] = 0;
 
-    /* TODO: Implement logic here... */
+    for (u8 row = 0; row < n; row++) {
+        u8 pixel = chip->mem[chip->I + row];
+        u8 yPos = (cy + row) % 32;
+
+        for (u8 col = 0; col < 8; col++) {
+            if (pixel & (0x80 >> col)) {
+                u8 xPos = (cx + col) % 64;
+                chip->dp[(yPos * DISPLAY_WIDTH) + xPos] ^= 1;
+
+                if (chip->dp[(yPos * DISPLAY_WIDTH) + xPos] == 0) {
+                    chip->V[0xF] = 1;
+                }
+            }
+        }
+    }
 
     /* Instruct graphics layer to redraw the screen */
     chip->state |= ST_REDRAW;

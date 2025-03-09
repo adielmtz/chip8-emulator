@@ -11,6 +11,7 @@ add_subdirectory(vendor/SDL EXCLUDE_FROM_ALL)
 add_executable(CHIP8
     src/main.c
     src/chip8.c
+    src/graphics.c
 )
 
 target_link_libraries(CHIP8 PRIVATE SDL3::SDL3)
