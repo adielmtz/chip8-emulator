@@ -43,7 +43,7 @@ void graphics_init(Graphics *g, int w, int h, int scale)
     /* Make texture */
     g->texture = SDL_CreateTexture(
         g->renderer,
-        SDL_PIXELFORMAT_XRGB8888,
+        SDL_PIXELFORMAT_RGBA8888,
         SDL_TEXTUREACCESS_TARGET,
         frameWidth, frameHeight
     );
@@ -78,7 +78,7 @@ void graphics_copy(Graphics *g, const uint8_t *buffer)
         for (uint8_t x = 0; x < g->width; x++) {
             uint8_t pixel = buffer[(y * g->width) + x];
 
-            // Scale the pixel by filling a 20x20 block
+            // Scale the pixel by filling a scaled pixel block
             for (int dy = 0; dy < g->scale; dy++) {
                 for (int dx = 0; dx < g->scale; dx++) {
                     // Calculate the corresponding position in the output array
